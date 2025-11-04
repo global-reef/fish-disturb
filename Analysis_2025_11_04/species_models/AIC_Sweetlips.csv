@@ -1,5 +1,5 @@
 model,df,AIC
-m_nb,7,231.16975689956638
-m_nb_zi,8,232.46967658400598
-m_nb_boats,8,NA
-m_nb_boats_zi,9,NA
+m_nb_boats,8,230.62476446291552
+m_nb_boats_zi,9,231.76801185400447
+m_nb_zi,8,231.88278337098214
+m_nb,7,NA

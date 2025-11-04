@@ -190,3 +190,135 @@ write_csv(lag1, file.path(output_dir, paste0("s8_lag1_by_site_", analysis_date, 
 
 # -------- Done --------
 message("✓ Exploration complete. Files saved to: ", normalizePath(output_dir))
+
+
+#### basic summaries ##### 
+# ---- totals & by-site ----
+stopifnot(exists("fish_long"), exists("output_dir"))
+
+# Ensure transect-level totals exist
+if (!exists("totals_transect")) {
+  totals_transect <- fish_long %>%
+    group_by(Type, Site, Date, TransectOrder, survey_pair) %>%
+    summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+}
+
+# Overall counts
+summary_overall <- tibble::tibble(
+  n_transects      = nrow(totals_transect),
+  n_pairs          = dplyr::n_distinct(totals_transect$survey_pair),
+  n_sites          = dplyr::n_distinct(totals_transect$Site),
+  n_survey_days    = dplyr::n_distinct(totals_transect$Date),
+  first_date       = min(totals_transect$Date, na.rm = TRUE),
+  last_date        = max(totals_transect$Date, na.rm = TRUE),
+  total_fish_count = sum(totals_transect$Total, na.rm = TRUE),
+  mean_per_transect= mean(totals_transect$Total, na.rm = TRUE),
+  median_per_transect = median(totals_transect$Total, na.rm = TRUE)
+)
+
+readr::write_csv(summary_overall, file.path(output_dir, "summary_overall.csv"))
+
+# By site
+by_site <- totals_transect %>%
+  group_by(Site) %>%
+  summarise(
+    n_transects   = dplyr::n(),
+    n_pairs       = dplyr::n_distinct(survey_pair),
+    n_days        = dplyr::n_distinct(Date),
+    first_date    = min(Date, na.rm = TRUE),
+    last_date     = max(Date, na.rm = TRUE),
+    days_span     = as.integer(last_date - first_date),
+    mean_total    = mean(Total, na.rm = TRUE),
+    median_total  = median(Total, na.rm = TRUE),
+    sd_total      = sd(Total, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+readr::write_csv(by_site, file.path(output_dir, "summary_by_site.csv"))
+
+# By site and Type
+by_site_type <- totals_transect %>%
+  group_by(Site, Type) %>%
+  summarise(
+    n_transects = dplyr::n(),
+    n_pairs     = dplyr::n_distinct(survey_pair),
+    mean_total  = mean(Total, na.rm = TRUE),
+    median_total= median(Total, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+readr::write_csv(by_site_type, file.path(output_dir, "summary_by_site_type.csv"))
+
+# ---- fish counted & density ----
+# total fish counted (from long)
+total_fish_long <- fish_long %>%
+  summarise(total_fish_count = sum(Count, na.rm = TRUE))
+
+readr::write_csv(total_fish_long, file.path(output_dir, "total_fish_from_long.csv"))
+
+# Optional density if area is available
+# Expect a column named Area_m2 at transect level (one value per row in totals_transect)
+density_available <- "Area_m2" %in% names(totals_transect)
+if (density_available) {
+  dens_tab <- totals_transect %>%
+    mutate(density_m2 = Total / Area_m2) %>%
+    group_by(Site) %>%
+    summarise(
+      mean_density_m2   = mean(density_m2, na.rm = TRUE),
+      median_density_m2 = median(density_m2, na.rm = TRUE),
+      .groups = "drop"
+    )
+  readr::write_csv(dens_tab, file.path(output_dir, "density_by_site.csv"))
+}
+
+# ---- survey effort ----
+present_x <- intersect(c("Depth","Vis","Boats","Duration"), names(fish_long))
+
+effort_base <- totals_transect %>%
+  # one row is one transect
+  summarise(
+    n_transects = dplyr::n(),
+    n_pairs     = dplyr::n_distinct(survey_pair),
+    n_sites     = dplyr::n_distinct(Site),
+    n_days      = dplyr::n_distinct(Date),
+    first_date  = min(Date, na.rm = TRUE),
+    last_date   = max(Date, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# effort by Type and TransectOrder
+effort_type_transect <- totals_transect %>%
+  count(Type, TransectOrder, name = "n_transects")
+
+readr::write_csv(effort_base,          file.path(output_dir, "effort_overall.csv"))
+readr::write_csv(effort_type_transect, file.path(output_dir, "effort_by_type_transect.csv"))
+
+# covariate summaries at survey-pair level to avoid double counting A and B
+effort_covars <- NULL
+if (length(present_x) > 0) {
+  effort_covars <- fish_long %>%
+    distinct(survey_pair, Site, Date, across(all_of(present_x))) %>%
+    summarise(
+      across(all_of(present_x),
+             list(min = ~min(.x, na.rm = TRUE),
+                  q25 = ~stats::quantile(.x, 0.25, na.rm = TRUE),
+                  median = ~stats::median(.x, na.rm = TRUE),
+                  mean = ~mean(.x, na.rm = TRUE),
+                  q75 = ~stats::quantile(.x, 0.75, na.rm = TRUE),
+                  max = ~max(.x, na.rm = TRUE)),
+             .names = "{.col}_{.fn}")
+    )
+  readr::write_csv(effort_covars, file.path(output_dir, "effort_covariates_summary.csv"))
+}
+
+
+# quick console prints
+print(summary_overall)
+print(by_site)
+print(effort_type_transect)
+if (density_available) message("Density by site saved (Area_m2 detected).")
+
+fish_long %>%
+  distinct(Site) %>%
+  arrange(Site) %>%
+  print(n = Inf)

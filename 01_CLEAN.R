@@ -149,6 +149,26 @@ totals_group <- fish_long %>%
   group_by(Type, Site, Date, TransectOrder, Functional_Group, survey_pair) %>%
   summarise(GroupTotal = sum(Count, na.rm = TRUE), .groups = "drop")
 
+# 1) apply standardizations
+fish_long <- fish_long %>%
+  mutate(
+    Site = as.character(Site),
+    Site = stringr::str_squish(Site),
+    Site = dplyr::recode(Site,
+                         "Japanese Garden"  = "Japanese Gardens",
+                         "Tanote"           = "Tanote Bay",
+                         "Grapeview 003"    = "Grapeview",
+                         "N Sai Nuan 0012"  = "N Sai Nuan 012",
+                         "S Nangyuan 001"   = "Nang Yuan S 001",
+                         "Buddha Wall 010"  = "Buddha Rock S 010"
+    ),
+    Site = factor(Site)
+  )
+
+# 2) drop Laem Thian S 007 from analyses
+drop_sites <- c("Laem Thian S 007")
+fish_long <- fish_long %>% filter(!(Site %in% drop_sites))
+
 # Save cleaned
 write_csv(fish_long, file.path(output_dir, paste0("fish_long_", analysis_date, ".csv")))
 write_csv(totals_transect, file.path(output_dir, paste0("totals_transect_", analysis_date, ".csv")))

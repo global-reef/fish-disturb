@@ -1,8 +1,7 @@
 Model: m_nb_boats_zi
 
  Family: nbinom2  ( log )
-Formula:          Total ~ Type * TransectOrder + scale(Boats) + (1 | Site) + (1 |  
-    survey_pair)
+Formula:          Total ~ Type * TransectOrder + scale(Boats) + (1 | Site) + (1 |      survey_pair)
 Zero inflation:         ~1
 Data: totals_transect
 
@@ -46,8 +45,7 @@ alternative hypothesis: two.sided
 
 DHARMa zero inflation test:
 
-	DHARMa zero-inflation test via comparison to expected zeros with simulation under
-	H0 = fitted model
+	DHARMa zero-inflation test via comparison to expected zeros with simulation under H0 = fitted model
 
 data:  simulationOutput
 ratioObsSim = 0.99379, p-value = 1
