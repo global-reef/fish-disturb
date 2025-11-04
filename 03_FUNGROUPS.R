@@ -203,3 +203,51 @@ fg_forest_padj <- fg_summary %>%
   )
 readr::write_csv(fg_forest_padj, file.path(fg_dir, "functional_groups_summary_padj.csv"))
 print(fg_forest_padj)
+
+
+##### Combined emmeans panel across functional groups #####
+# Requires: files 'emm_<group>.csv' in fg_dir created by the per-group models
+
+stopifnot(exists("fg_dir"))
+groups <- c("Grazer","Invertivore","Mesopredator","HTLP")
+
+# Read, normalize, and combine
+emm_all <- purrr::map_dfr(groups, function(g) {
+  fp <- file.path(fg_dir, paste0("emm_", g, ".csv"))
+  df <- readr::read_csv(fp, show_col_types = FALSE)
+  df <- normalize_emm_cis(df)
+  df$Functional_Group <- g
+  df %>%
+    dplyr::mutate(
+      Type = factor(Type, levels = c("Dived","Undived")),
+      TransectOrder = factor(TransectOrder, levels = c("A","B")),
+      Functional_Group = factor(Functional_Group,
+                                levels = c("Grazer","Invertivore","Mesopredator","HTLP"))
+    )
+})
+
+# Faceted emmeans plot (shared y-axis for comparability; set scales="free_y" if needed)
+p_emm_panel <- ggplot(emm_all,
+                      aes(x = TransectOrder, y = response, color = Type, group = Type)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
+  facet_wrap(~ Functional_Group, nrow = 1) +
+  labs(
+    title = "Estimated means (emmeans) by functional group",
+    x = "Transect order",
+    y = "Expected count"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+ggsave(file.path(fg_dir, "plot_emm_functional_groups_panel.png"),
+       p_emm_panel, width = 12, height = 3.8, dpi = 300)
+
+# If counts differ wildly across groups, use free y-scale:
+p_emm_panel_free <- p_emm_panel + facet_wrap(~ Functional_Group, nrow = 2, scales = "free_y")
+ggsave(file.path(fg_dir, "plot_emm_functional_groups_panel_freeY.png"), p_emm_panel_free, width = 12, height = 3.8, dpi = 300)
+
