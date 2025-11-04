@@ -1,8 +1,6 @@
 # Fish Disturbance Project
 
 Analysis of fish assemblage responses to diver presence across reef sites in the Gulf of Thailand.  
-This repository includes a **fully frequentist workflow** (no Bayesian or CoTS components).
-
 ---
 
 ## Repository Structure
