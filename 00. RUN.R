@@ -28,3 +28,21 @@ library(lubridate)
 library(stringr)
 library(forcats)
 library(tidyverse)
+
+
+
+### running analysis 
+# 01 clean 
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/01_CLEAN.R")
+
+# 01.1 explore (based on Zuur et al. 2010)
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/01.1_EXPLORE.R")
+
+# 02 total fish model 
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/02_MODEL_ALLFISH.R")
+
+# 03 functional groups 
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/03_FUNGROUPS.R")
+
+# 04 species specific models 
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/04_MODEL_SPP.R")
