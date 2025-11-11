@@ -30,6 +30,26 @@ library(forcats)
 library(tidyverse)
 
 
+### custom theme and colour palettes ###############################################################
+theme_clean <- theme_minimal(base_family = "Arial") +
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_blank(),
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.grid = element_blank()
+  )
+
+# colour palettes
+fg_cols <- c(
+  "Grazer" = "#66c2a4",
+  "Invertivore" = "#41b6c4",
+  "Mesopredator" = "#2c7fb8",
+  "HTLP" = "#253494"
+) 
+
 
 ### running analysis 
 # 01 clean 
@@ -46,3 +66,5 @@ source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/03_FUN
 
 # 04 species specific models 
 source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/04_MODEL_SPP.R")
+
+
