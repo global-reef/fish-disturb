@@ -49,6 +49,8 @@ fg_cols <- c(
   "Mesopredator" = "#2c7fb8",
   "HTLP" = "#253494"
 ) 
+# Reef palette for Dived vs Undived 
+reef_cols <- c("Dived" = "#66BFA6", "Undived" = "#007A87")
 
 
 ### running analysis 
@@ -67,4 +69,6 @@ source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/03_FUN
 # 04 species specific models 
 source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/04_MODEL_SPP.R")
 
+# 05 community structure analysis 
+source("~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/05_COMMUNITY_STRUCTURE.R")
 

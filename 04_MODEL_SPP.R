@@ -105,7 +105,7 @@ fit_species_model <- function(sp) {
     geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
     labs(title = paste0(sp, ": estimated means"),
          x = "Transect order", y = "Expected count") +
-    theme_minimal()
+    theme_clean
   ggsave(file.path(spp_dir, paste0("plot_emm_", sp, ".png")), p, width = 7, height = 5, dpi = 300)
   
   coefs <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
@@ -188,7 +188,7 @@ p_forest <- ggplot(spp_forest, aes(y = label, x = interaction_est)) +
     title = "Interaction Undived × B by species",
     x = "Log-count difference in A to B change (Undived vs Dived)", y = NULL
   ) +
-  theme_minimal(base_size = 10)
+  theme_clean
 ggsave(file.path(spp_dir, "plot_species_interaction_forest_sciname.png"),
        p_forest, width = 7.5, height = 10, dpi = 300)
 

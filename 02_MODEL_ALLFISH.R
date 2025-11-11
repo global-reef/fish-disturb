@@ -109,7 +109,7 @@ p_eff <- ggplot(emm_df,
   geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
   labs(title = "Estimated means at median Boats",
        x = "Transect order", y = "Expected total fish") +
-  theme_minimal()
+  theme_clean
 
 ggsave(file.path(output_dir, "plot_emm_TypeXTransect_medianBoats.png"),
        p_eff, width = 7, height = 5, dpi = 300)
@@ -139,7 +139,7 @@ p_boats <- ggplot(emm_boats_df,
   facet_wrap(~ Boats_level) +
   labs(title = "Estimated means across Boats levels",
        x = "Transect order", y = "Expected total fish") +
-  theme_minimal()
+  theme_clean
 
 ggsave(file.path(output_dir, "plot_emm_TypeXTransect_byBoatsLevels.png"),
        p_boats, width = 9, height = 5.5, dpi = 300)
@@ -158,6 +158,7 @@ summary(final_model)
 
 
 
+'''
 ### 00. BAYESIAN  #### 
 ##### Bayesian model (ZINB) with mild directional prior #####
 
@@ -231,7 +232,7 @@ p_eff <- ggplot(emm_df, aes(TransectOrder, response, color = Type, group = Type)
   geom_line(size = 1) + geom_point(size = 2) +
   geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
   labs(title = "Estimated means at median Boats", x = "Transect order", y = "Expected total fish") +
-  theme_minimal()
+  theme_clean
 
 # Bayesian
 emm_bayes_df <- as.data.frame(summary(emm_bayes)) %>% normalize_emm_cis()
@@ -239,7 +240,7 @@ p_eff_bayes <- ggplot(emm_bayes_df, aes(TransectOrder, response, color = Type, g
   geom_line(size = 1) + geom_point(size = 2) +
   geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
   labs(title = "Bayesian ZINB: Estimated means at median Boats", x = "Transect order", y = "Expected total fish") +
-  theme_minimal()
+  theme_clean
 
 ggsave(file.path(output_dir, "bayes_plot_emm_TypeXTransect_medianBoats.png"),
        p_eff_bayes, width = 7, height = 5, dpi = 300)
@@ -250,4 +251,5 @@ p_dir <- mean(post$`b_TypeUndived:TransectOrderB` < 0)
 p_dir
 
 # Report a compact summary
-sink(file.path(output_dir, "bayes_model_summary.txt")); print(summary(fit_bayes)); sink()
+sink(file.path(output_dir, "bayes_model_summary.txt")); print(summary(fit_bayes)); sink() 
+'''

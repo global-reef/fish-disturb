@@ -127,13 +127,13 @@ fit_group_model <- function(g) {
   
   # Plot
   emm_df <- as.data.frame(summary(emm)) %>% normalize_emm_cis()
-  p <- ggplot2::ggplot(emm_df, ggplot2::aes(TransectOrder, response, color = Type, group = Type)) +
-    ggplot2::geom_line(size = 1) +
-    ggplot2::geom_point(size = 2) +
-    ggplot2::geom_errorbar(ggplot2::aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
-    ggplot2::labs(title = paste0(g, " — Estimated means"), x = "Transect order", y = "Expected count") +
-    ggplot2::theme_minimal()
-  ggplot2::ggsave(file.path(fg_dir, paste0("plot_emm_", g, ".png")), p, width = 7, height = 5, dpi = 300)
+  p <- ggplot(emm_df, aes(TransectOrder, response, color = Type, group = Type)) +
+    geom_line(size = 1) +
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
+    labs(title = paste0(g, " — Estimated means"), x = "Transect order", y = "Expected count") +
+    theme_clean
+  ggsave(file.path(fg_dir, paste0("plot_emm_", g, ".png")), p, width = 7, height = 5, dpi = 300)
   
   # Coefs
   coefs <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
@@ -189,7 +189,7 @@ p_forest <- ggplot(fg_forest,
     x = "Log-count difference in A→B change (Undived vs Dived)",
     y = NULL
   ) +
-  theme_minimal()
+  theme_clean
 p_forest
 ggsave(file.path(fg_dir, "plot_interaction_forest.png"),
        p_forest, width = 7.5, height = 4.8, dpi = 300)
@@ -238,7 +238,7 @@ p_emm_panel <- ggplot(emm_all,
     x = "Transect order",
     y = "Expected count"
   ) +
-  theme_minimal() +
+  theme_clean +
   theme(
     strip.text = element_text(face = "bold"),
     legend.position = "bottom"

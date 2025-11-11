@@ -7,6 +7,7 @@ suppressPackageStartupMessages({
   library(readr)
   library(purrr)
   library(stringr)
+  library(patchwork)
 })
 
 #### Inputs & setup ####
@@ -51,7 +52,7 @@ p_fg <- ggplot(fg_scores, aes(NMDS1, NMDS2, color = Type)) +
   theme_minimal() +
   labs(title = "NMDS of functional-group composition",
        subtitle = "Bray–Curtis dissimilarity, Hellinger-transformed",
-       color = "Site type")
+       color = "Site type") + theme_clean
 p_fg
 ggsave(file.path(comm_dir, "plot_fg_nmds.png"), p_fg, width = 7, height = 5, dpi = 300)
 
@@ -90,7 +91,7 @@ p_spp <- ggplot(spp_scores, aes(NMDS1, NMDS2, color = Type)) +
   theme_minimal() +
   labs(title = "NMDS of species composition",
        subtitle = "Bray–Curtis dissimilarity, Hellinger-transformed",
-       color = "Site type")
+       color = "Site type") + theme_clean
 p_spp
 ggsave(file.path(comm_dir, "plot_spp_nmds.png"), p_spp, width = 7, height = 5, dpi = 300)
 
@@ -128,8 +129,7 @@ sim_df <- spp_sim_df %>%
   filter(cum_perc <= 70) %>%
   mutate(Species_label = forcats::fct_reorder(sci_name, average))
 
-# Reef palette for Dived vs Undived 
-reef_cols <- c("Dived" = "#66BFA6", "Undived" = "#007A87")
+
 
 # Plot
 p_simper <- ggplot(sim_df,
@@ -157,8 +157,10 @@ ggsave(file.path(comm_dir, "plot_spp_simper_sig.png"),
 p_simper
 
 
+p_nmds <- p_fg + p_spp
 
-
+ggsave(file.path(comm_dir, "plot_nmds_combine.png"),
+       p_nmds, width = 7.5, height = 6, dpi = 300)
 
 ##### 3. Ordination stress summary #####
 ord_summary <- tibble(
