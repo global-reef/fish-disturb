@@ -101,18 +101,45 @@ normalize_emm_cis <- function(df) {
 
 ##### 8. Plot: Type × Transect (median Boats) #####
 emm_df <- as.data.frame(summary(emm)) %>% normalize_emm_cis()
+emm_plot <- emm_df %>%
+  mutate(
+    Type = factor(Type, levels = c("Dived","Undived")),
+    TransectOrder = factor(TransectOrder, levels = c("A","B")),
+    x = as.numeric(TransectOrder)
+  )
 
-p_eff <- ggplot(emm_df,
-                aes(x = TransectOrder, y = response, color = Type, group = Type)) +
-  geom_line(size = 1) +
-  geom_point(size = 2) +
-  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
-  labs(title = "Estimated means at median Boats",
-       x = "Transect order", y = "Expected total fish") +
-  theme_clean
+delta_lab <- emm_plot %>%
+  select(Type, TransectOrder, response) %>%
+  pivot_wider(names_from = TransectOrder, values_from = response) %>%
+  mutate(pct = 100 * (B - A) / A,
+         label = paste0(ifelse(pct >= 0, "+", ""), sprintf("%.0f%%", pct))) %>%
+  left_join(
+    emm_plot %>% group_by(Type) %>% summarise(x_mid = mean(x), y_mid = mean(response), .groups = "drop"),
+    by = "Type"
+  )
 
-ggsave(file.path(output_dir, "plot_emm_TypeXTransect_medianBoats.png"),
-       p_eff, width = 7, height = 5, dpi = 300)
+p_eff <- ggplot(emm_plot, aes(x = x, y = response, color = Type, group = Type)) +
+  geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type),
+              alpha = 0.15, color = NA) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.2) +
+  geom_text(
+    data = delta_lab,
+    aes(x = x_mid, y = y_mid + 0.05 * max(emm_plot$response),
+        label = label, color = Type),
+    size = 3.2,
+    fontface = "bold",
+    show.legend = FALSE
+  ) +
+  scale_x_continuous(breaks = c(1, 2), labels = c("A", "B")) +
+  scale_color_manual(values = reef_cols) +
+  scale_fill_manual(values  = reef_cols, guide = "none") +
+  labs(x = "Transect order", y = "Expected total fish") +
+  theme_clean +
+  theme(legend.position = "top", legend.title = element_blank())
+
+ggsave(file.path(output_dir, "figures", "fig_total_emm_clean.png"),
+       p_eff, width = 7, height = 5, dpi = 300, bg = "white")
 
 p_eff 
 ##### 9. Plot: Type × Transect across Boats levels #####
