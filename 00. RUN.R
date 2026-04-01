@@ -3,7 +3,7 @@
 ######### 0. Set Analysis Date & Create Output Folder #######
 
 # Enter the date for this analysis
-analysis_date <- "2025_11_04"  # Update these  for each analysis run
+analysis_date <- "2026_04_01"  # Update these  for each analysis run
 # file path (adjust date for correct date)
 file_path <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/2025.11.04_fish-disturb-data.csv"
 # --------------------------

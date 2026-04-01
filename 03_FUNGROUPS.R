@@ -173,7 +173,7 @@ fg_forest <- fg_summary %>%
     ci_low  = interaction_est - 1.96 * interaction_SE,
     ci_high = interaction_est + 1.96 * interaction_SE
   ) %>%
-  # order by estimate (or choose a fixed order you like)
+  # order by estimate 
   mutate(Functional_Group = factor(Functional_Group,
                                    levels = fg_summary$Functional_Group[order(interaction_est)]))
 
@@ -200,16 +200,8 @@ p_forest <- ggplot(fg_forest,
                  height = 0.2, color = "grey40", linewidth = 0.8) +
   geom_point(aes(fill = Functional_Group),
              shape = 21, size = 3.5, color = "black", stroke = 0.3) +
-  scale_fill_manual(values = c(
-    "Grazer" = "#66c2a4",
-    "Invertivore" = "#41b6c4",
-    "Mesopredator" = "#2c7fb8",
-    "HTLP" = "#253494"
-  ), guide = "none") +
-  labs(
-    x = "Log-count difference in A→B change (Undived vs Dived)",
-    y = NULL
-  ) +
+  scale_fill_manual(values = fg_cols, guide = "none") +
+  labs(x = "Log-count difference in A→B change (Undived vs Dived)",y = NULL) +
   theme_clean +
   theme(
     axis.text.y = element_text(face = "bold"),
@@ -319,3 +311,5 @@ ggsave(file.path(output_dir, "figures", "fig_emm_functional_groups_clean.png"),
 p_emm_panel_free <- p_emm_panel + facet_wrap(~ Functional_Group, nrow = 2, scales = "free_y")
 ggsave(file.path(fg_dir, "plot_emm_functional_groups_panel_freeY.png"), p_emm_panel_free, width = 12, height = 3.8, dpi = 300)
 
+
+message("✓ Functional-group plots saved. Outputs in: ", normalizePath(output_dir))

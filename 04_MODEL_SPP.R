@@ -272,3 +272,323 @@ ggsave(file.path(spp_dir, "plot_species_direction_by_functional_group.png"),
 suppressWarnings({
   (p_forest + p_fg_bar) + plot_layout(ncol = 2)
 })
+
+### building nice spp plots (called-out species only) #####
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(readr)
+  library(stringr)
+  library(purrr)
+  library(patchwork)
+})
+
+### expects ####
+# theme_clean, reef_cols
+# spp_dir contains: species_models_summary.csv and emm_<Species>.csv
+# spp_lookup contains: Species, sci_name
+
+normalize_emm_cis <- function(df) {
+  # standardise mean column
+  if (!("response" %in% names(df))) {
+    if ("emmean" %in% names(df)) df <- dplyr::rename(df, response = emmean)
+    else if ("Estimate" %in% names(df)) df <- dplyr::rename(df, response = Estimate)
+  }
+  # standardise CI columns (handle either CL or HPD naming)
+  if (!("lower.CL" %in% names(df))) {
+    if (all(c("asymp.LCL","asymp.UCL") %in% names(df))) {
+      df <- dplyr::rename(df, lower.CL = asymp.LCL, upper.CL = asymp.UCL)
+    } else if (all(c("lower.HPD","upper.HPD") %in% names(df))) {
+      df <- dplyr::rename(df, lower.CL = lower.HPD, upper.CL = upper.HPD)
+    }
+  }
+  df
+}
+
+### 0) species set (as in Results text) ####
+spp_called <- c(
+  "Angelfish",      # Pomacanthus spp.
+  "Thicklip",       # Hemigymnus melapterus
+  "Red_Breast",     # Cheilinus fasciatus
+  "Rabbitfish",     # Siganus spp.
+  "Parrotfish",     # Scarus spp.
+  "Butterflyfish"   # Chaetodon spp.
+)
+
+### 1) read species summary for sig flag + estimates ####
+spp_sum <- readr::read_csv(file.path(spp_dir, "species_models_summary.csv"),
+                           show_col_types = FALSE) %>%
+  mutate(
+    Species = as.character(Species),
+    sig = interaction_p < 0.05
+  ) %>%
+  filter(Species %in% spp_called) %>%
+  mutate(Species = factor(Species, levels = spp_called))  # lock order
+
+stopifnot(nrow(spp_sum) == length(spp_called))
+
+### 2) map to scientific labels ####
+map_spp <- spp_lookup %>%
+  transmute(Species = as.character(Species),
+            label   = as.character(sci_name)) %>%
+  distinct()
+
+spp_sum <- spp_sum %>%
+  left_join(map_spp, by = "Species") %>%
+  mutate(label = ifelse(is.na(label) | label == "", as.character(Species), label))
+
+### 3) read ONLY the emmeans tables for these species ####
+emm_files <- file.path(spp_dir, paste0("emm_", as.character(spp_sum$Species), ".csv"))
+miss <- emm_files[!file.exists(emm_files)]
+if (length(miss) > 0) {
+  stop("Missing emm files for called-out species:\n", paste(basename(miss), collapse = "\n"))
+}
+
+emm_all <- purrr::map_dfr(emm_files, function(fp) {
+  sp <- stringr::str_match(basename(fp), "^emm_(.*)\\.csv$")[, 2]
+  readr::read_csv(fp, show_col_types = FALSE) %>%
+    normalize_emm_cis() %>%
+    mutate(Species = sp)
+}) %>%
+  filter(Species %in% spp_called) %>%   # hard guarantee
+  left_join(spp_sum %>% transmute(Species = as.character(Species), label, interaction_est, sig),
+            by = "Species") %>%
+  mutate(
+    response  = as.numeric(response),
+    lower.CL  = as.numeric(lower.CL),
+    upper.CL  = as.numeric(upper.CL),
+    Type = factor(Type, levels = c("Dived", "Undived")),
+    TransectOrder = factor(TransectOrder, levels = c("A", "B")),
+    x = as.numeric(TransectOrder),
+    Species = factor(Species, levels = spp_called),
+    label = factor(label, levels = spp_sum$label)
+  )
+
+### 4) summarise to one row per Species x Type x TransectOrder (should be 24 rows) ####
+emm_all_u <- emm_all %>%
+  group_by(Species, label, Type, TransectOrder) %>%
+  summarise(
+    response = mean(response, na.rm = TRUE),
+    lower.CL = mean(lower.CL, na.rm = TRUE),
+    upper.CL = mean(upper.CL, na.rm = TRUE),
+    x        = first(x),
+    sig      = first(sig),
+    .groups  = "drop"
+  )
+
+# sanity checks
+stopifnot(nrow(emm_all_u) == 24)
+stopifnot(all(levels(droplevels(emm_all_u$Species)) %in% spp_called))
+
+# ensure every Species x Type has both A and B
+chk_AB <- emm_all_u %>%
+  count(Species, Type, TransectOrder) %>%
+  tidyr::pivot_wider(names_from = TransectOrder, values_from = n, values_fill = 0)
+
+if (any(chk_AB$A == 0 | chk_AB$B == 0)) {
+  stop("Some Species x Type are missing A or B rows:\n",
+       paste0(capture.output(print(chk_AB %>% filter(A == 0 | B == 0))), collapse = "\n"))
+}
+
+### 5) percent-change labels within each Species x Type (should be 12 rows) ####
+delta_lab <- emm_all_u %>%
+  select(Species, label, Type, TransectOrder, response) %>%   # <-- NO x here
+  pivot_wider(
+    id_cols    = c(Species, label, Type),
+    names_from = TransectOrder,
+    values_from = response,
+    values_fn  = mean
+  ) %>%
+  mutate(
+    A = as.numeric(A),
+    B = as.numeric(B)
+  ) %>%
+  filter(is.finite(A), is.finite(B), A > 0) %>%
+  mutate(
+    pct = 100 * (B - A) / A,
+    lab = paste0(ifelse(pct >= 0, "+", ""), sprintf("%.0f%%", pct))
+  ) %>%
+  left_join(
+    emm_all_u %>%
+      group_by(Species, label, Type) %>%
+      summarise(
+        x_mid = mean(x),
+        y_mid = mean(response),
+        .groups = "drop"
+      ),
+    by = c("Species", "label", "Type")
+  ) %>%
+  left_join(
+    emm_all_u %>%
+      group_by(Species, label) %>%
+      summarise(y_max = max(response, na.rm = TRUE), .groups = "drop"),
+    by = c("Species", "label")
+  ) %>%
+  mutate(y_pos = y_mid + 0.08 * y_max)
+
+stopifnot(nrow(delta_lab) == 12)
+delta_lab %>% count(Species, Type)
+
+### 6) one ggplot per species + patchwork ####
+make_one <- function(sp) {
+  
+  d  <- emm_all_u %>% filter(Species == sp)
+  dl <- delta_lab %>% filter(Species == sp)
+  
+  # hard guard: if we somehow have no rows, return NULL (will be filtered out)
+  if (nrow(d) == 0) return(NULL)
+  
+  title_txt <- unique(as.character(d$label))
+  title_txt <- title_txt[!is.na(title_txt)][1]
+  
+  # use subtitle for the star so the title stays “pure italics”
+  sub_txt <- if (any(d$sig, na.rm = TRUE)) "*" else NULL
+  
+  p <- ggplot(d, aes(x = x, y = response, color = Type, group = Type)) +
+    geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type),
+                alpha = 0.15, color = NA) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.8) +
+    geom_text(
+      data = dl,
+      aes(x = x_mid, y = y_pos, label = lab, color = Type),
+      size = 3.2,
+      fontface = "bold",
+      show.legend = FALSE
+    ) +
+    scale_x_continuous(breaks = c(1, 2), labels = c("A", "B")) +
+    scale_color_manual(values = reef_cols) +
+    scale_fill_manual(values  = reef_cols, guide = "none") +
+    labs(title = title_txt, subtitle = sub_txt, x = NULL, y = NULL) +
+    theme_clean +
+    theme(
+      plot.title = element_text(face = "italic", size = 12, hjust = 0.5),
+      plot.subtitle = element_text(face = "plain", size = 12, hjust = 0.5),
+      legend.position = "top",
+      legend.title = element_blank()
+    )
+  
+  return(p)
+}
+
+plots <- purrr::map(spp_called, make_one) |>   # use spp_called to preserve your intended order
+  purrr::keep(~ inherits(.x, "ggplot"))
+
+stopifnot(length(plots) == 6)  # should be exactly your 6 species
+
+p_panel <- patchwork::wrap_plots(plots, ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom")
+
+p_panel <- p_panel +
+  patchwork::plot_annotation(
+    caption = "* indicates Type × Transect interaction p < 0.05",
+    theme = theme(plot.caption = element_text(hjust = 0, size = 9))
+  ) &
+  labs(x = "Transect order", y = "Expected abundance")
+
+ggsave(
+  file.path(spp_dir, "fig_emm_species_panel_calledout_clean.png"),
+  p_panel, width = 10, height = 6.0, dpi = 300, bg = "white"
+)
+
+p_panel
+
+
+
+library(dplyr)
+library(readr)
+library(purrr)
+
+# get all species coefficient files
+coef_files <- list.files(spp_dir, pattern = "^coefs_.*\\.csv$", full.names = TRUE)
+
+s5_table <- map_dfr(coef_files, function(fp) {
+  
+  sp <- gsub("coefs_|\\.csv", "", basename(fp))
+  
+  read_csv(fp, show_col_types = FALSE) %>%
+    filter(effect == "fixed") %>%
+    transmute(
+      Species = sp,
+      Term = term,
+      Estimate = estimate,
+      SE = std.error,
+      z = statistic,
+      p = p.value,
+      CI_lower = conf.low,
+      CI_upper = conf.high
+    )
+})
+s5_table <- s5_table %>%
+  mutate(
+    Term = recode(Term,
+                  "(Intercept)" = "Intercept",
+                  "TypeUndived" = "Type (Undived vs Dived)",
+                  "TransectOrderB" = "Transect order (B vs A)",
+                  "TypeUndived:TransectOrderB" = "Type × Transect order",
+                  "scale(Boats)" = "Boats"
+    )
+  )
+
+s5_table <- s5_table %>%
+  filter(Term == "Type × Transect order") %>%
+  mutate(
+    Direction = case_when(
+      Estimate > 0 ~ "Undived decline weaker",
+      Estimate < 0 ~ "Undived decline stronger",
+      TRUE ~ "No difference"
+    )
+  ) %>%
+  select(
+    Species,
+    Estimate,
+    SE,
+    z,
+    p,
+    CI_lower,
+    CI_upper,
+    Direction
+  ) %>%
+  arrange(desc(Estimate))
+print(s5_table, n=Inf)
+
+
+##### S6: Model seleciton tables ##### 
+
+library(dplyr)
+library(readr)
+library(purrr)
+library(stringr)
+
+### TOTAL MODEL ####
+aic_total <- AIC(m_nb, m_nb_zi, m_nb_boats, m_nb_boats_zi) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("Model") %>%
+  mutate(Level = "Total", Group = "All")
+
+### FUNCTIONAL GROUPS ####
+fg_files <- list.files(file.path(output_dir, "functional_groups"),
+                       pattern = "^AIC_.*\\.csv$", full.names = TRUE)
+
+aic_fg <- map_dfr(fg_files, function(fp) {
+  g <- str_remove(basename(fp), "AIC_|\\.csv")
+  read_csv(fp, show_col_types = FALSE) %>%
+    mutate(Level = "Functional group", Group = g)
+})
+
+### SPECIES ####
+spp_files <- list.files(file.path(output_dir, "species_models"),
+                        pattern = "^AIC_.*\\.csv$", full.names = TRUE)
+
+aic_spp <- map_dfr(spp_files, function(fp) {
+  sp <- str_remove(basename(fp), "AIC_|\\.csv")
+  read_csv(fp, show_col_types = FALSE) %>%
+    mutate(Level = "Species", Group = sp)
+})
+
+### COMBINE ####
+table_s6 <- bind_rows(aic_total, aic_fg, aic_spp) %>%
+  arrange(Level, Group, AIC)
+
+table_s6

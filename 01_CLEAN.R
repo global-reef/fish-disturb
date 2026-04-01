@@ -128,27 +128,6 @@ clean_data_disturb <- function(file_path) {
 
 # Run cleaner
 fish_long <- clean_data_disturb(file_path)
-
-
-# Sanity check plot: A vs B by Dived vs Undived
-ggplot(totals_transect,
-       aes(x = TransectOrder, y = Total, group = survey_pair, color = Type)) +
-  geom_line(alpha = 0.4) +
-  geom_point(alpha = 0.7) +
-  labs(x = "Transect order", y = "Total fish", color = "Site type")
-
-
-
-# Basic totals
-totals_transect <- fish_long %>%
-  group_by(Type, Site, Date, TransectOrder, survey_pair) %>%
-  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
-
-# Functional group totals
-totals_group <- fish_long %>%
-  group_by(Type, Site, Date, TransectOrder, Functional_Group, survey_pair) %>%
-  summarise(GroupTotal = sum(Count, na.rm = TRUE), .groups = "drop")
-
 # 1) apply standardizations
 fish_long <- fish_long %>%
   mutate(
@@ -169,6 +148,27 @@ fish_long <- fish_long %>%
 drop_sites <- c("Laem Thian S 007")
 fish_long <- fish_long %>% filter(!(Site %in% drop_sites))
 
+
+
+# Basic totals
+totals_transect <- fish_long %>%
+  group_by(Type, Site, Date, TransectOrder, survey_pair) %>%
+  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# Functional group totals
+totals_group <- fish_long %>%
+  group_by(Type, Site, Date, TransectOrder, Functional_Group, survey_pair) %>%
+  summarise(GroupTotal = sum(Count, na.rm = TRUE), .groups = "drop")
+
+# Sanity check plot: A vs B by Dived vs Undived
+ggplot(totals_transect,
+       aes(x = TransectOrder, y = Total, group = survey_pair, color = Type)) +
+  geom_line(alpha = 0.4) +
+  geom_point(alpha = 0.7) +
+  labs(x = "Transect order", y = "Total fish", color = "Site type")
+
+
+
 # Save cleaned
 write_csv(fish_long, file.path(output_dir, paste0("fish_long_", analysis_date, ".csv")))
 write_csv(totals_transect, file.path(output_dir, paste0("totals_transect_", analysis_date, ".csv")))
@@ -176,3 +176,26 @@ write_csv(totals_group, file.path(output_dir, paste0("totals_group_", analysis_d
 
 # Helper for saving plots
 save_plot <- function(p, name, w=8, h=6) ggsave(file.path(output_dir, paste0(name, "_", analysis_date, ".png")), p, width=w, height=h, dpi=300)
+
+
+# create table s2: site charactertics 
+site_characteristics <- fish_long %>%
+  distinct(Site, Type, Date, TransectOrder, survey_pair, Depth, Duration, Vis, Boats) %>%
+  mutate(
+    Site = as.character(Site),
+    Type = as.character(Type)
+  ) %>%
+  group_by(Site, Type) %>%
+  summarise(
+    n_pairs = n_distinct(survey_pair),
+    n_days = n_distinct(Date),
+    mean_depth_m = mean(Depth, na.rm = TRUE),
+    mean_duration_min = mean(Duration, na.rm = TRUE),
+    mean_vis_m = mean(Vis, na.rm = TRUE),
+    mean_boats = mean(Boats, na.rm = TRUE),
+    habitat_type = NA_character_,
+    .groups = "drop"
+  ) %>%
+  arrange(Type, Site)
+
+site_characteristics
