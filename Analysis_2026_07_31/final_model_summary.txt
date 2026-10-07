@@ -1,0 +1,53 @@
+Model: m_nb_boats_zi
+
+ Family: nbinom2  ( log )
+Formula:          Total ~ Type * TransectOrder + scale(Boats) + (1 | Site) + (1 |      survey_pair)
+Zero inflation:         ~1
+Data: totals_transect
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+   1961.7    1990.1    -971.8    1943.7       164 
+
+Random effects:
+
+Conditional model:
+ Groups      Name        Variance Std.Dev.
+ Site        (Intercept) 0.1135   0.3369  
+ survey_pair (Intercept) 0.3884   0.6232  
+Number of obs: 173, groups:  Site, 16; survey_pair, 87
+
+Dispersion parameter for nbinom2 family (): 31.2 
+
+Conditional model:
+                           Estimate Std. Error z value Pr(>|z|)    
+(Intercept)                 5.32596    0.16466   32.35  < 2e-16 ***
+TypeUndived                -0.53195    0.25477   -2.09   0.0368 *  
+TransectOrderB             -0.17332    0.04209   -4.12 3.83e-05 ***
+scale(Boats)               -0.06261    0.09567   -0.65   0.5128    
+TypeUndived:TransectOrderB  0.14997    0.06173    2.43   0.0151 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Zero-inflation model:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)  -4.4485     0.7112  -6.255 3.98e-10 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+DHARMa dispersion test:
+
+	DHARMa nonparametric dispersion test via sd of residuals fitted vs. simulated
+
+data:  simulationOutput
+dispersion = 1.0589, p-value = 0.541
+alternative hypothesis: two.sided
+
+
+DHARMa zero inflation test:
+
+	DHARMa zero-inflation test via comparison to expected zeros with simulation under H0 = fitted model
+
+data:  simulationOutput
+ratioObsSim = 1.0015, p-value = 1
+alternative hypothesis: two.sided
+

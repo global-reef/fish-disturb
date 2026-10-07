@@ -132,15 +132,38 @@ if (ncol(covars) >= 2) {
 
 # -------- Step 6: Relationships Y vs X --------
 if (length(present_x) > 0) {
+  
+  covars_transect <- fish_long %>%
+    group_by(survey_pair, TransectOrder) %>%
+    summarise(
+      across(all_of(present_x), ~ first(na.omit(.x)), .names = "{.col}"),
+      .groups = "drop"
+    )
+  
   yx <- totals_transect %>%
-    left_join(fish_long %>% distinct(survey_pair, across(all_of(present_x))), by = "survey_pair") %>%
-    pivot_longer(cols = all_of(present_x), names_to = "Xvar", values_to = "Xval")
+    select(-any_of(present_x)) %>%
+    left_join(
+      covars_transect,
+      by = c("survey_pair", "TransectOrder"),
+      relationship = "many-to-one"
+    ) %>%
+    pivot_longer(
+      cols = all_of(present_x),
+      names_to = "Xvar",
+      values_to = "Xval"
+    )
+  
   p8 <- ggplot(yx, aes(x = Xval, y = Total, color = Type)) +
     geom_point(alpha = 0.6) +
     geom_smooth(se = FALSE, method = "loess") +
     facet_wrap(~ Xvar, scales = "free_x") +
-    labs(title = "Total vs covariates", x = "Covariate", y = "Total")
-  save_plot(p8, "s6_total_vs_covariates", w=9, h=6)
+    labs(
+      title = "Total vs covariates",
+      x = "Covariate",
+      y = "Total fish"
+    )
+  
+  save_plot(p8, "s6_total_vs_covariates", w = 9, h = 6)
 }
 
 # -------- Step 7: Interactions (Type x TransectOrder) --------

@@ -3,7 +3,7 @@
 ######### 0. Set Analysis Date & Create Output Folder #######
 
 # Enter the date for this analysis
-analysis_date <- "2026_04_01"  # Update these  for each analysis run
+analysis_date <- "2026_07_31"  # Update these  for each analysis run
 # file path (adjust date for correct date)
 file_path <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/FishDisturb/fish-disturbance/2025.11.04_fish-disturb-data.csv"
 # --------------------------
@@ -27,19 +27,27 @@ library(gridExtra)
 library(lubridate)
 library(stringr)
 library(forcats)
+library(readr)
+library(purrr)
+library(patchwork)
 library(tidyverse)
 
 
+
+
 ### custom theme and colour palettes ###############################################################
-theme_clean <- theme_minimal(base_family = "Arial") +
+theme_clean <- theme_classic(base_family = "Times") +
   theme(
-    legend.position = "right",
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
+    legend.position = c(0.98, 0.98),
+    legend.justification = c(1, 1),
+    legend.title = element_blank(),
     plot.title = element_blank(),
-    panel.background = element_rect(fill = "white", colour = NA),
-    plot.background = element_rect(fill = "white", colour = NA),
-    panel.grid = element_blank()
+    panel.background = element_rect(fill = "transparent", colour = NA),
+    plot.background = element_rect(fill = "transparent", colour = NA),
+    legend.background = element_rect(fill = "transparent", colour = NA),
+    legend.box.background = element_rect(fill = "transparent", colour = NA),
+    strip.background = element_rect(fill = "transparent", colour = NA),
+    strip.text = element_blank()
   )
 
 # colour palettes

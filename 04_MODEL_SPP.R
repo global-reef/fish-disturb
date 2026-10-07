@@ -106,7 +106,7 @@ fit_species_model <- function(sp) {
     labs(title = paste0(sp, ": estimated means"),
          x = "Transect order", y = "Expected count") +
     theme_clean
-  ggsave(file.path(spp_dir, paste0("plot_emm_", sp, ".png")), p, width = 7, height = 5, dpi = 300)
+  ggsave(file.path(spp_dir, paste0("plot_emm_", sp, ".png")), p, width = 7, height = 5, dpi = 600)
   
   coefs <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
   write_csv(coefs, file.path(spp_dir, paste0("coefs_", sp, ".csv")))
@@ -141,7 +141,7 @@ spp_lookup <- tibble::tribble(
   "Cleaner_Wrasse",    "Invertivore",     "Labroides",           "dimidiatus",     "Labroides dimidiatus",
   "Batfish",           "Invertivore",     "Ephippidae",          "spp.",           "Ephippidae spp.",
   "Thicklip",          "Invertivore",     "Hemigymnus",          "melapterus",     "Hemigymnus melapterus",
-  "Red_Breast",        "Invertivore",     "Cheilinus",           "fasciatus",      "Cheilinus fasciatus",
+  "Red_Breast",        "Invertivore",     "Cheilinus",           "fasciatus",      "Concholabrus fasciatus",
   "Slingjaw",          "Invertivore",     "Epibulus",            "insidiator",     "Epibulus insidiator",
   "Sweetlips",         "Invertivore",     "Diagramma/Plectorhinchus","spp.",        "Diagramma/ Plectorhinchus spp.",
   "Squirrel.Soldier",  "Invertivore",     "Holocentridae",       "spp.",           "Holocentridae spp.",
@@ -190,7 +190,7 @@ p_forest <- ggplot(spp_forest, aes(y = label, x = interaction_est)) +
   ) +
   theme_clean
 ggsave(file.path(spp_dir, "plot_species_interaction_forest_sciname.png"),
-       p_forest, width = 7.5, height = 10, dpi = 300)
+       p_forest, width = 7.5, height = 10, dpi = 600)
 
 #### 7) Emmeans facets and heatmap (scientific names) ####
 emm_all <- map_dfr(spp_summary$Species, function(sp) {
@@ -215,7 +215,7 @@ p_emm <- ggplot(emm_all, aes(TransectOrder, response, color = Type, group = Type
   theme_minimal(base_size = 9) +
   theme(strip.text = element_text(face = "bold"))
 ggsave(file.path(spp_dir, "plot_emm_species_facets_sciname.png"),
-       p_emm, width = 12, height = 9, dpi = 300)
+       p_emm, width = 12, height = 9, dpi = 600)
 
 emm_heat <- emm_all %>%
   unite(cond, Type, TransectOrder, sep = "_") %>%
@@ -231,7 +231,7 @@ p_heat <- ggplot(emm_heat, aes(Condition, label, fill = response)) +
        title = "Species level expected counts") +
   theme_minimal(base_size = 9)
 ggsave(file.path(spp_dir, "plot_emm_species_heatmap_sciname.png"),
-       p_heat, width = 6.5, height = 10, dpi = 300)
+       p_heat, width = 6.5, height = 10, dpi = 600)
 
 #### 8) Ranked effects and functional composition (uses lookup FG) ####
 spp_rank <- spp_summary %>%
@@ -253,7 +253,7 @@ p_rank <- ggplot(spp_rank, aes(x = interaction_est, y = label, color = sig)) +
        title = "Ranked species level interaction effects", color = "p < 0.05") +
   theme_minimal(base_size = 10)
 ggsave(file.path(spp_dir, "plot_species_ranked_effects_sciname.png"),
-       p_rank, width = 7.5, height = 10, dpi = 300)
+       p_rank, width = 7.5, height = 10, dpi = 600)
 
 spp_effects_fg <- spp_summary %>%
   select(Species, interaction_est) %>%
@@ -266,7 +266,7 @@ p_fg_bar <- ggplot(spp_effects_fg, aes(Functional_Group, fill = direction)) +
        title = "Directional species responses by functional group") +
   theme_minimal(base_size = 10)
 ggsave(file.path(spp_dir, "plot_species_direction_by_functional_group.png"),
-       p_fg_bar, width = 6.5, height = 4.5, dpi = 300)
+       p_fg_bar, width = 6.5, height = 4.5, dpi = 600)
 
 #### 9) Quick summary panel ####
 suppressWarnings({
@@ -308,12 +308,12 @@ normalize_emm_cis <- function(df) {
 
 ### 0) species set (as in Results text) ####
 spp_called <- c(
-  "Angelfish",      # Pomacanthus spp.
-  "Thicklip",       # Hemigymnus melapterus
-  "Red_Breast",     # Cheilinus fasciatus
   "Rabbitfish",     # Siganus spp.
   "Parrotfish",     # Scarus spp.
-  "Butterflyfish"   # Chaetodon spp.
+  "Butterflyfish",   # Chaetodon spp.
+  "Angelfish",      # Pomacanthus spp.
+  "Thicklip",       # Hemigymnus melapterus
+  "Red_Breast"     # Choncholabrus fasciatus
 )
 
 ### 1) read species summary for sig flag + estimates ####
@@ -430,75 +430,60 @@ delta_lab <- emm_all_u %>%
 stopifnot(nrow(delta_lab) == 12)
 delta_lab %>% count(Species, Type)
 
-### 6) one ggplot per species + patchwork ####
-make_one <- function(sp) {
+
+#### 6) Figure 5 ####
+last_sp <- spp_called[3]
+
+mk_spp <- function(sp) {
+  d <- filter(emm_all_u, Species == sp)
+  dl <- filter(delta_lab, Species == sp)
   
-  d  <- emm_all_u %>% filter(Species == sp)
-  dl <- delta_lab %>% filter(Species == sp)
-  
-  # hard guard: if we somehow have no rows, return NULL (will be filtered out)
-  if (nrow(d) == 0) return(NULL)
-  
-  title_txt <- unique(as.character(d$label))
-  title_txt <- title_txt[!is.na(title_txt)][1]
-  
-  # use subtitle for the star so the title stays “pure italics”
-  sub_txt <- if (any(d$sig, na.rm = TRUE)) "*" else NULL
-  
-  p <- ggplot(d, aes(x = x, y = response, color = Type, group = Type)) +
-    geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type),
-                alpha = 0.15, color = NA) +
+  p <- ggplot(d, aes(x, response, color = Type, group = Type)) +
+    geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type), alpha = 0.15, color = NA) +
     geom_line(linewidth = 0.9) +
     geom_point(size = 1.8) +
-    geom_text(
-      data = dl,
-      aes(x = x_mid, y = y_pos, label = lab, color = Type),
-      size = 3.2,
-      fontface = "bold",
-      show.legend = FALSE
-    ) +
-    scale_x_continuous(breaks = c(1, 2), labels = c("A", "B")) +
+    geom_text(data = dl, aes(x_mid, y_pos, label = lab, color = Type),
+              size = 3.2, fontface = "bold", show.legend = FALSE) +
+    scale_x_continuous(breaks = 1:2, labels = c("A", "B")) +
     scale_color_manual(values = reef_cols) +
-    scale_fill_manual(values  = reef_cols, guide = "none") +
-    labs(title = title_txt, subtitle = sub_txt, x = NULL, y = NULL) +
+    scale_fill_manual(values = reef_cols, guide = "none") +
+    labs(x = NULL, y = NULL) +
     theme_clean +
     theme(
-      plot.title = element_text(face = "italic", size = 12, hjust = 0.5),
-      plot.subtitle = element_text(face = "plain", size = 12, hjust = 0.5),
-      legend.position = "top",
-      legend.title = element_blank()
+      legend.position = if (sp == last_sp) c(0.98, 0.98) else "none",
+      legend.justification = c(1, 1)
     )
   
-  return(p)
-}
+  if (any(d$sig, na.rm = TRUE)) {
+    p <- p + annotate("text", x = 1.03, y = max(d$upper.CL, na.rm = TRUE) * 1.04,
+                      label = "*", hjust = 0, vjust = 1, size = 5, family = "Times")
+  }
+  
+  p
+} 
 
-plots <- purrr::map(spp_called, make_one) |>   # use spp_called to preserve your intended order
-  purrr::keep(~ inherits(.x, "ggplot"))
+plots <- map(spp_called, mk_spp)
 
-stopifnot(length(plots) == 6)  # should be exactly your 6 species
-
-p_panel <- patchwork::wrap_plots(plots, ncol = 3, guides = "collect") &
-  theme(legend.position = "bottom")
-
-p_panel <- p_panel +
-  patchwork::plot_annotation(
+p_panel <- wrap_plots(plots, ncol = 3) +
+  plot_annotation(
+    tag_levels = list(sprintf("(%s)", letters[1:6])),
     caption = "* indicates Type × Transect interaction p < 0.05",
-    theme = theme(plot.caption = element_text(hjust = 0, size = 9))
+    theme = theme(
+      plot.tag = element_text(family = "Times", face = "bold", size = 11),
+      plot.caption = element_text(family = "Times", hjust = 0, size = 9),
+      plot.background = element_rect(fill = "transparent", colour = NA)
+    )
   ) &
-  labs(x = "Transect order", y = "Expected abundance")
-
-ggsave(
-  file.path(spp_dir, "fig_emm_species_panel_calledout_clean.png"),
-  p_panel, width = 10, height = 6.0, dpi = 300, bg = "white"
-)
+  theme(
+    text = element_text(family = "Times"),
+    plot.background = element_rect(fill = "transparent", colour = NA)
+  )
 
 p_panel
 
+ggsave(file.path(output_dir, "figures", "fig5_emm_species_panel_calledout_clean.png"),
+       p_panel, width = 10, height = 6, dpi = 600)
 
-
-library(dplyr)
-library(readr)
-library(purrr)
 
 # get all species coefficient files
 coef_files <- list.files(spp_dir, pattern = "^coefs_.*\\.csv$", full.names = TRUE)

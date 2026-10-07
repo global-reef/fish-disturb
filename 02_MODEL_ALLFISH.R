@@ -14,13 +14,18 @@ suppressPackageStartupMessages({
 if (!exists("totals_transect")) {
   totals_transect <- fish_long %>%
     group_by(Type, Site, Date, TransectOrder, survey_pair) %>%
-    summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+    summarise(
+      Total = sum(Count, na.rm = TRUE),
+      Boats = first(Boats),
+      .groups = "drop"
+    )
 }
 
 totals_transect <- totals_transect %>%
   mutate(
     Type = factor(Type, levels = c("Dived", "Undived")),
-    TransectOrder = factor(TransectOrder, levels = c("A", "B"))
+    TransectOrder = factor(TransectOrder, levels = c("A", "B")),
+    Boats = as.numeric(Boats)
   )
 
 ##### 2. Fit baseline models #####
@@ -99,7 +104,7 @@ normalize_emm_cis <- function(df) {
   df
 }
 
-##### 8. Plot: Type × Transect (median Boats) #####
+##### 8. Figure 2: Plot: Type × Transect (median Boats) #####
 emm_df <- as.data.frame(summary(emm)) %>% normalize_emm_cis()
 emm_plot <- emm_df %>%
   mutate(
@@ -135,11 +140,10 @@ p_eff <- ggplot(emm_plot, aes(x = x, y = response, color = Type, group = Type)) 
   scale_color_manual(values = reef_cols) +
   scale_fill_manual(values  = reef_cols, guide = "none") +
   labs(x = "Transect order", y = "Expected total fish") +
-  theme_clean +
-  theme(legend.position = "top", legend.title = element_blank())
+  theme_clean 
 
-ggsave(file.path(output_dir, "figures", "fig_total_emm_clean.png"),
-       p_eff, width = 7, height = 5, dpi = 300, bg = "white")
+ggsave(file.path(output_dir, "figures", "fig2_total_emm_clean.png"),
+       p_eff, width = 7, height = 5, dpi = 600)
 
 p_eff 
 ##### 9. Plot: Type × Transect across Boats levels #####
@@ -169,7 +173,7 @@ p_boats <- ggplot(emm_boats_df,
   theme_clean
 
 ggsave(file.path(output_dir, "plot_emm_TypeXTransect_byBoatsLevels.png"),
-       p_boats, width = 9, height = 5.5, dpi = 300)
+       p_boats, width = 9, height = 5.5, dpi = 600)
 p_boats
 
 ##### 10. Export coefficients #####

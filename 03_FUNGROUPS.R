@@ -133,7 +133,7 @@ fit_group_model <- function(g) {
     geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.05) +
     labs(title = paste0(g, " — Estimated means"), x = "Transect order", y = "Expected count") +
     theme_clean
-  ggsave(file.path(fg_dir, paste0("plot_emm_", g, ".png")), p, width = 7, height = 5, dpi = 300)
+  ggsave(file.path(fg_dir, paste0("plot_emm_", g, ".png")), p, width = 7, height = 5, dpi = 600)
   
   # Coefs
   coefs <- broom.mixed::tidy(final_model, effects = "fixed", conf.int = TRUE)
@@ -179,7 +179,7 @@ fg_forest <- fg_summary %>%
 
 readr::write_csv(fg_forest, file.path(fg_dir, "functional_groups_interaction_forest.csv"))
 
-#### Polished functional-group interaction forest plot ##########################
+#### Figure 3: Polished functional-group interaction forest plot ##########################
 # expects: fg_forest with Functional_Group, interaction_est, ci_low, ci_high
 # uses: theme_clean
 
@@ -201,7 +201,7 @@ p_forest <- ggplot(fg_forest,
   geom_point(aes(fill = Functional_Group),
              shape = 21, size = 3.5, color = "black", stroke = 0.3) +
   scale_fill_manual(values = fg_cols, guide = "none") +
-  labs(x = "Log-count difference in A→B change (Undived vs Dived)",y = NULL) +
+  labs(x = "Log-count difference in A to B change (Undived vs Dived)",y = NULL) +
   theme_clean +
   theme(
     axis.text.y = element_text(face = "bold"),
@@ -210,8 +210,8 @@ p_forest <- ggplot(fg_forest,
     panel.grid.minor = element_blank()
   )
 
-ggsave(file.path(output_dir, "figures", "fig_forest_functional_groups_clean.png"),
-       p_forest, width = 7, height = 4, dpi = 300, bg = "white")
+ggsave(file.path(output_dir, "figures", "fig3_forest_functional_groups_clean.png"),
+       p_forest, width = 7, height = 4, dpi = 600)
 
 p_forest
 
@@ -234,12 +234,19 @@ stopifnot(exists("fg_dir"))
 groups <- c("Grazer","Invertivore","Mesopredator","HTLP")
 
 # Read, normalize, and combine
-emm_all <- emm_all %>%
-  mutate(
-    Type = factor(Type, levels = c("Dived","Undived")),
-    TransectOrder = factor(TransectOrder, levels = c("A","B")),
-    x = as.numeric(TransectOrder)
-  )
+emm_all <- map_dfr(groups_to_run, function(g) {
+  read_csv(
+    file.path(fg_dir, paste0("emm_", g, ".csv")),
+    show_col_types = FALSE
+  ) %>%
+    normalize_emm_cis() %>%
+    mutate(
+      Functional_Group = g,
+      Type = factor(Type, levels = c("Dived", "Undived")),
+      TransectOrder = factor(TransectOrder, levels = c("A", "B")),
+      x = as.numeric(TransectOrder)
+    )
+})
 
 # Compute A→B percent change per Functional_Group × Type
 delta_lab <- emm_all %>%
@@ -263,53 +270,50 @@ y_max_fg <- emm_all %>%
 delta_lab <- delta_lab %>%
   dplyr::left_join(y_max_fg, by = "Functional_Group")
 
-p_emm_panel <- ggplot(emm_all,
-                      aes(x = x, y = response, color = Type, group = Type)) +
-  geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type),
-              alpha = 0.15, color = NA) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2) +
-  geom_text(
-    data = delta_lab,
-    aes(x = x_mid,
-        y = y_mid + 0.06 * y_max,   # facet-specific lift
-        label = label,
-        color = Type),
-    size = 3,
-    fontface = "bold",
-    show.legend = FALSE
-  ) + 
-  scale_x_continuous(breaks = c(1, 2), labels = c("A", "B")) +
-  scale_color_manual(values = reef_cols) +
-  scale_fill_manual(values = reef_cols, guide = "none") +
-  labs(x = "Transect order", y = "Expected abundance") +
-  facet_wrap(~ Functional_Group,
-             nrow = 1,
-             scales = "free_y",
-             labeller = labeller(
-               Functional_Group = c(
-                 Grazer = "Grazers",
-                 Invertivore = "Invertivores",
-                 Mesopredator = "Mesopredators",
-                 HTLP = "High trophic level predators"
-               )
-             )) + 
-  theme_clean +
+#### Figure 4 ####
+fg_ord <- c("Grazer", "Invertivore", "Mesopredator", "HTLP")
+
+mk_fg <- function(g) {
+  ggplot(filter(emm_all, Functional_Group == g), aes(x, response, color = Type, group = Type)) +
+    geom_ribbon(aes(ymin = lower.CL, ymax = upper.CL, fill = Type), alpha = 0.15, color = NA) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
+    geom_text(
+      data = filter(delta_lab, Functional_Group == g),
+      aes(x_mid, y_mid + 0.06 * y_max, label = label, color = Type),
+      size = 3, fontface = "bold", show.legend = FALSE
+    ) +
+    scale_x_continuous(breaks = 1:2, labels = c("A", "B")) +
+    scale_color_manual(values = reef_cols) +
+    scale_fill_manual(values = reef_cols, guide = "none") +
+    labs(x = NULL, y = NULL) +
+    theme_clean + 
+    theme(
+      legend.position = if (g == "HTLP") c(0.98, 0.98) else "none",
+      legend.justification = c(1, 1))
+}
+
+p_emm_panel <- wrap_plots(map(fg_ord, mk_fg), nrow = 1) +
+  plot_annotation(
+    tag_levels = list(sprintf("(%s)", letters[1:4])),
+    theme = theme(
+      plot.tag = element_text(family = "Times", face = "bold", size = 11),
+      plot.background = element_rect(fill = "transparent", colour = NA)
+    )
+  ) &
   theme(
-    legend.position = "top",
-    legend.title = element_blank(),
-    strip.text = element_text(face = "bold", size = 10),
-    axis.title.y = element_text(margin = margin(r = 10))
+    text = element_text(family = "Times"),
+    plot.background = element_rect(fill = "transparent", colour = NA)
   )
 p_emm_panel
-ggsave(file.path(output_dir, "figures", "fig_emm_functional_groups_clean.png"),
-       p_emm_panel, width = 10, height = 4, dpi = 300, bg = "white")
-
+ggsave(file.path(output_dir, "figures", "fig4_emm_functional_groups_clean.png"),
+       p_emm_panel, width = 10, height = 3, dpi = 600)
 
 
 # If counts differ wildly across groups, use free y-scale:
 p_emm_panel_free <- p_emm_panel + facet_wrap(~ Functional_Group, nrow = 2, scales = "free_y")
-ggsave(file.path(fg_dir, "plot_emm_functional_groups_panel_freeY.png"), p_emm_panel_free, width = 12, height = 3.8, dpi = 300)
+ggsave(file.path(fg_dir, "plot_emm_functional_groups_panel_freeY.png"), p_emm_panel_free, width = 12, height = 3.8, dpi = 600)
 
 
 message("✓ Functional-group plots saved. Outputs in: ", normalizePath(output_dir))
+

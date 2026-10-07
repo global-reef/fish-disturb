@@ -5,6 +5,7 @@ library(stringr)
 library(forcats)
 library(ggplot2)
 
+
 clean_data_disturb <- function(file_path) {
   df <- read.csv(file_path, stringsAsFactors = TRUE, strip.white = TRUE)
   
@@ -32,7 +33,7 @@ clean_data_disturb <- function(file_path) {
       Researcher      = RESEARCHERS
     ) %>%
     mutate(
-      Type = recode(as.character(DU), "D" = "Dived", "U" = "Undived"),
+      Type = dplyr::recode(as.character(DU), "D" = "Dived", "U" = "Undived"),
       Type = factor(Type, levels = c("Dived", "Undived")),
       TransectOrder = factor(as.character(transect), levels = c("A","B")),
       Date = as.Date(as.character(Date_raw), format = "%m/%d/%Y"),
@@ -153,7 +154,11 @@ fish_long <- fish_long %>% filter(!(Site %in% drop_sites))
 # Basic totals
 totals_transect <- fish_long %>%
   group_by(Type, Site, Date, TransectOrder, survey_pair) %>%
-  summarise(Total = sum(Count, na.rm = TRUE), .groups = "drop")
+  summarise(
+    Total = sum(Count, na.rm = TRUE),
+    Boats = first(Boats),
+    .groups = "drop"
+  )
 
 # Functional group totals
 totals_group <- fish_long %>%
@@ -199,3 +204,4 @@ site_characteristics <- fish_long %>%
   arrange(Type, Site)
 
 site_characteristics
+
